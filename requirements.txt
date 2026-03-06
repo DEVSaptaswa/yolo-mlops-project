@@ -1,0 +1,11 @@
+ultralytics
+mlflow
+fastapi
+uvicorn
+pillow
+opencv-python
+numpy
+pandas
+scikit-learn
+prometheus-client
+python-multipart
