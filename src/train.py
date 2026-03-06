@@ -2,6 +2,10 @@ import mlflow
 import mlflow.pytorch
 from ultralytics import YOLO
 
+os.environ["MLFLOW_TRACKING_URI"] = "file:///D:/yolo-mlops-project/mlruns"
+
+mlflow.set_tracking_uri("file:///D:/yolo-mlops-project/mlruns")
+mlflow.set_experiment("YOLO_Object_Detection")
 
 def train_model(lr, batch, imgsz, epochs):
 
@@ -28,8 +32,11 @@ def train_model(lr, batch, imgsz, epochs):
     # Log metrics
     metrics = results.results_dict
 
+    metrics = results.results_dict
+
     for key, value in metrics.items():
-        mlflow.log_metric(key, value)
+        clean_key = key.replace("(", "").replace(")", "")
+        mlflow.log_metric(clean_key, float(value))
 
     # Save model
     model_path = "models/model.pt"

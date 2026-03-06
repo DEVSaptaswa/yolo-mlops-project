@@ -1,13 +1,65 @@
-version: "3"
+version: "3.9"
 
 services:
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yolo-fastapi
     ports:
       - "8000:8000"
+    volumes:
+      - ../models:/app/models
+      - ../mlruns:/app/mlruns
+    depends_on:
+      - mlflow
+    networks:
+      - mlops-network
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow-server
     ports:
       - "5000:5000"
+    volumes:
+      - ../mlruns:/mlruns
+    command: >
+      mlflow server
+      --backend-store-uri /mlruns
+      --default-artifact-root /mlruns
+      --host 0.0.0.0
+      --port 5000
+    networks:
+      - mlops-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus-server
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - mlops-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana-dashboard
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - mlops-network
+
+volumes:
+  grafana-storage:
+
+networks:
+  mlops-network:
+    driver: bridge
