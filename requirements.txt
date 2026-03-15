@@ -3,7 +3,7 @@ mlflow
 fastapi
 uvicorn
 pillow
-opencv-python
+opencv-python-headless
 numpy
 pandas
 scikit-learn
