@@ -1,54 +1,55 @@
+import os
 import mlflow
 import mlflow.pytorch
 from ultralytics import YOLO
 
-os.environ["MLFLOW_TRACKING_URI"] = "file:///D:/yolo-mlops-project/mlruns"
-
-mlflow.set_tracking_uri("file:///D:/yolo-mlops-project/mlruns")
-mlflow.set_experiment("YOLO_Object_Detection")
+# ✅ Set BEFORE anything else — Ultralytics reads this env var automatically
+os.environ["MLFLOW_TRACKING_URI"] = "http://localhost:5000"
 
 def train_model(lr, batch, imgsz, epochs):
 
-    mlflow.start_run()
+    # ✅ Set tracking URI inside the function too
+    mlflow.set_tracking_uri("http://localhost:5000")
+    mlflow.set_experiment("YOLO_Object_Detection")
 
-    # Log parameters
-    mlflow.log_param("learning_rate", lr)
-    mlflow.log_param("batch_size", batch)
-    mlflow.log_param("image_size", imgsz)
-    mlflow.log_param("epochs", epochs)
+    with mlflow.start_run():
 
-    # Load YOLO model
-    model = YOLO("yolov8n.pt")
+        # Log parameters
+        mlflow.log_param("learning_rate", lr)
+        mlflow.log_param("batch_size", batch)
+        mlflow.log_param("image_size", imgsz)
+        mlflow.log_param("epochs", epochs)
 
-    # Train
-    results = model.train(
-        data="data/dataset.yaml",
-        epochs=epochs,
-        imgsz=imgsz,
-        batch=batch,
-        lr0=lr
-    )
+        # ✅ Disable Ultralytics' built-in mlflow callback to avoid conflict
+        model = YOLO("yolov8n.pt")
+        model.add_callback("on_pretrain_routine_end", lambda *args, **kwargs: None)
 
-    # Log metrics
-    metrics = results.results_dict
+        # Train
+        results = model.train(
+            data="data/dataset.yaml",
+            epochs=epochs,
+            imgsz=imgsz,
+            batch=batch,
+            lr0=lr
+        )
 
-    metrics = results.results_dict
+        # Log metrics
+        metrics = results.results_dict
+        for key, value in metrics.items():
+            clean_key = key.replace("(", "").replace(")", "")
+            try:
+                mlflow.log_metric(clean_key, float(value))
+            except Exception:
+                pass
 
-    for key, value in metrics.items():
-        clean_key = key.replace("(", "").replace(")", "")
-        mlflow.log_metric(clean_key, float(value))
-
-    # Save model
-    model_path = "models/model.pt"
-    model.save(model_path)
-
-    mlflow.log_artifact(model_path)
-
-    mlflow.end_run()
+        # Save and log model
+        os.makedirs("models", exist_ok=True)
+        model_path = "models/model.pt"
+        model.save(model_path)
+        mlflow.log_artifact(model_path)
 
 
 if __name__ == "__main__":
-
     train_model(
         lr=0.001,
         batch=16,
